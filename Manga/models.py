@@ -29,7 +29,8 @@ class MangaChapters(models.Model):
     chapter_number = models.IntegerField(default=0)
     manga = models.ForeignKey("Manga", related_name="chapters", on_delete=models.SET_NULL, null=True)
     volume = models.ForeignKey(MangaVolume, related_name="chapters", on_delete=models.SET_NULL, null=True, blank=True)
-    pages = models.ManyToManyField('MangaPage', related_name="chapter_pages")
+    release = models.BooleanField(default=False)
+    pages = models.ManyToManyField('MangaPage', related_name="chapter_pages",null=True, blank=True)
     likes = models.ManyToManyField(User, blank=True, related_name='chapter_likes')
 
     def __str__(self):
@@ -48,6 +49,9 @@ class MangaPage(models.Model):
 
     def __str__(self):
         return f'Page {self.page_number}'
+
+    class Meta:
+        ordering = ["page_number"]
 
 
 class MangaView(models.Model):
@@ -88,7 +92,7 @@ class Manga(models.Model):
     manga_status = models.CharField(max_length=155, choices=manga_status_choices)
     translation_status = models.CharField(max_length=155, choices=translation_status_choices)
     manga_type = models.CharField(max_length=50, choices=mangatypes_choices)
-    note = models.CharField(max_length=255, default="отсутствует")
+    note = models.CharField(max_length=600, default="отсутствует")
     likes = models.ManyToManyField(User, blank=True, related_name='likes')
     dislikes = models.ManyToManyField(User, blank=True, related_name='dislikes')
     views = models.PositiveIntegerField(default=0)
@@ -106,6 +110,9 @@ class Manga(models.Model):
 
     def __str__(self):
         return self.manga_name
+
+    class Meta:
+        ordering = ["-date_join"]
 
 
 class Tags(models.Model):
@@ -126,6 +133,7 @@ class Comment(models.Model):
     parent = models.ForeignKey(
         "self", on_delete=models.CASCADE, null=True, blank=True, related_name="replies"
     )
+    likes = models.ManyToManyField(User, blank=True, related_name='comments_likes')
     def __str__(self):
         return f'{self.user.username}'
 

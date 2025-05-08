@@ -15,6 +15,30 @@ class MangaPageSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class MangaChapterListFilterSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        data = data.filter(release=True, chapter_number__gte=0)  # Фильтруем опубликованные главы с номером >= 0
+        return super().to_representation(data)
+
+
+class MangaProfileChapterListSerializer(serializers.ModelSerializer):
+    pages = MangaPageSerializer(many=True, read_only=True)
+    volume = serializers.StringRelatedField()
+    is_liked = serializers.SerializerMethodField()
+    total_likes = serializers.SerializerMethodField()
+
+    def get_is_liked(self, obj):
+        user = self.context["request"].user
+        return user.is_authenticated and obj.likes.filter(id=user.id).exists()
+
+    def get_total_likes(self, obj):
+        return obj.total_likes()
+
+    class Meta:
+        model = MangaChapters
+        fields = ["id", "chapter_title", "chapter_number", "is_liked", "total_likes", "date_time", "volume", "pages",
+                  "manga"]
+
 class MangaChapterListSerializer(serializers.ModelSerializer):
     pages = MangaPageSerializer(many=True, read_only=True)
     volume = serializers.StringRelatedField()
@@ -32,6 +56,8 @@ class MangaChapterListSerializer(serializers.ModelSerializer):
         model = MangaChapters
         fields = ["id", "chapter_title", "chapter_number", "is_liked", "total_likes", "date_time", "volume", "pages",
                   "manga"]
+        list_serializer_class = MangaChapterListFilterSerializer  # Используем кастомный ListSerializer
+
 
 
 class MangaChapterDetailSerializer(serializers.ModelSerializer):
@@ -57,6 +83,7 @@ class MangaChapterDetailSerializer(serializers.ModelSerializer):
             "is_first_chapter",
             "is_liked",
             "total_likes",
+            "release"
         ]
 
     def get_is_last_chapter(self, obj):
@@ -75,12 +102,46 @@ class MangaChapterDetailSerializer(serializers.ModelSerializer):
         return obj.total_likes()
 
 
+class MangaAddVolumeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MangaVolume
+        fields = ["id", "volume_number"]
+
 class MangaVolumeSerializer(serializers.ModelSerializer):
     chapters = MangaChapterListSerializer(many=True, read_only=True)
 
     class Meta:
         model = MangaVolume
         fields = ["id", "volume_number", "cover_image", "chapters"]
+
+class UserMangaSerializers(serializers.ModelSerializer):
+    tags = serializers.StringRelatedField(many=True)
+    total_likes = serializers.SerializerMethodField()
+    total_dislikes = serializers.SerializerMethodField()
+    liked = serializers.SerializerMethodField()
+    disliked = serializers.SerializerMethodField()
+    total_chapters = serializers.SerializerMethodField()
+
+    def get_liked(self, obj):
+        request = self.context.get("request")
+        return obj.likes.filter(id=request.user.id).exists()
+
+    def get_disliked(self, obj):
+        request = self.context.get("request")
+        return obj.dislikes.filter(id=request.user.id).exists()
+
+    def get_total_dislikes(self, obj):
+        return obj.total_dislikes()
+
+    def get_total_likes(self, obj):
+        return obj.total_likes()
+
+    def get_total_chapters(self, obj):
+        return obj.chapters.count()
+
+    class Meta:
+        model = Manga
+        fields = "__all__"
 
 
 class MangaSerializer(serializers.ModelSerializer):
@@ -109,6 +170,11 @@ class MangaSerializer(serializers.ModelSerializer):
         model = Manga
         fields = "__all__"
 
+class ProfileMangaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Manga
+        fields = "__all__"
+
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField()
     created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
@@ -133,9 +199,10 @@ class MangaChaptersSerializers(serializers.ModelSerializer):
 
 
 class MangaChaptersSerializersAdd(serializers.ModelSerializer):
+
     class Meta:
         model = MangaChapters
-        fields = "__all__"
+        fields = ["chapter_title","chapter_number", "volume","manga" , "release"]
 
 
 class MangaSerializerWriterId(serializers.ModelSerializer):
