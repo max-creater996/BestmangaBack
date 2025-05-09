@@ -213,7 +213,6 @@ class OneMangaAddAPI(generics.CreateAPIView):
 class One_Manga_API(generics.RetrieveAPIView):
     lookup_field = "slug"
     queryset = Manga.objects.all()
-    permission_classes = [IsAuthenticated, ]
     serializer_class = MangaSerializer
 
     def retrieve(self, request, *args, **kwargs):
