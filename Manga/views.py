@@ -10,6 +10,8 @@ from .models import *
 from django.db.models import OuterRef, Subquery
 from django.contrib.contenttypes.models import ContentType
 from rest_framework.exceptions import PermissionDenied
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 4
@@ -123,30 +125,68 @@ class AddPageToChapterView(generics.CreateAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class UpdatePageInChapterView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = MangaPageSerializer
-    queryset = MangaPage.objects.all()
+class UpdatePageInChapterView(APIView):
     permission_classes = [IsAuthenticated]
-    parser_classes = (MultiPartParser, FormParser)
 
-    def update(self, request, *args, **kwargs):
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Items(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'id': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID страницы'),
+                    'page_number': openapi.Schema(type=openapi.TYPE_INTEGER, description='Новый номер страницы'),
+                },
+                required=['id', 'page_number']
+            ),
+            description="Массив объектов с id страницы и новым page_number"
+        )
+    )
+    def post(self, request, *args, **kwargs):
         chapter = get_object_or_404(MangaChapters, id=self.kwargs.get("chapter_id"))
-        page = get_object_or_404(chapter.pages, id=self.kwargs.get("page_id"))
+        
+        # Проверяем, что пользователь является автором манги
+        if str(chapter.manga.writer_user_id) != str(request.user.username):
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        serializer = self.get_serializer(page, data=request.data, partial=False)
+        # Получаем массив с новыми номерами страниц
+        pages_data = request.data
+        if not isinstance(pages_data, list):
+            return Response({"error": "Expected array of pages"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if serializer.is_valid():
-            new_page_number = serializer.validated_data.get("page_number")
+        # Проверяем формат данных
+        for page_data in pages_data:
+            if not isinstance(page_data, dict) or 'id' not in page_data or 'page_number' not in page_data:
+                return Response({"error": "Each page should have 'id' and 'page_number'"}, 
+                              status=status.HTTP_400_BAD_REQUEST)
 
-            if chapter.pages.exclude(id=page.id).filter(page_number=new_page_number).exists():
-                return Response({"error": "Страница с таким номером уже существует в этой главе."},
-                                status=status.HTTP_400_BAD_REQUEST)
+        # Проверяем, что все страницы принадлежат этой главе
+        page_ids = [page_data['id'] for page_data in pages_data]
+        if not chapter.pages.filter(id__in=page_ids).count() == len(page_ids):
+            return Response({"error": "Some pages don't belong to this chapter"}, 
+                          status=status.HTTP_400_BAD_REQUEST)
 
-            serializer.save()
-            return Response({"message": "Страница успешно обновлена", "page": serializer.data},
-                            status=status.HTTP_200_OK)
+        # Проверяем, что новые номера страниц не конфликтуют
+        new_page_numbers = [page_data['page_number'] for page_data in pages_data]
+        if len(set(new_page_numbers)) != len(new_page_numbers):
+            return Response({"error": "Duplicate page numbers found"}, 
+                          status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Обновляем номера страниц
+        updated_pages = []
+        for page_data in pages_data:
+            page = chapter.pages.get(id=page_data['id'])
+            page.page_number = page_data['page_number']
+            page.save()
+            updated_pages.append({
+                'id': page.id,
+                'page_number': page.page_number
+            })
+
+        return Response({
+            "message": "Номера страниц успешно обновлены",
+            "updated_pages": updated_pages
+        }, status=status.HTTP_200_OK)
 
 
 class MangaChapterDetailView(generics.RetrieveAPIView):

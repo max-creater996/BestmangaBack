@@ -92,7 +92,7 @@ class Manga(models.Model):
     manga_status = models.CharField(max_length=155, choices=manga_status_choices)
     translation_status = models.CharField(max_length=155, choices=translation_status_choices)
     manga_type = models.CharField(max_length=50, choices=mangatypes_choices)
-    note = models.CharField(max_length=600, default="отсутствует")
+    note = models.TextField(default="отсутствует")
     likes = models.ManyToManyField(User, blank=True, related_name='likes')
     dislikes = models.ManyToManyField(User, blank=True, related_name='dislikes')
     views = models.PositiveIntegerField(default=0)
