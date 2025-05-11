@@ -25,6 +25,7 @@ urlpatterns = [
     path('manga/<slug:slug>/chapter_update/<int:chapter_number>', Manga_chapter_update.as_view()),
     path("manga/chapter/<int:chapter_id>/add_page", AddPageToChapterView.as_view()),
     path("manga/chapter/<int:chapter_id>/pages", UpdatePageInChapterView.as_view()),
+    path("manga/chapter/<int:chapter_id>/pages/<int:page_number>", DeletePageFromChapterView.as_view()),
     path("last_chapter/<int:pk>",Manga_last_chapter.as_view()),
     path('manga/<slug:slug>/volumes/<int:pk>/', MangaVolumeDetailView.as_view(), name='manga-volume-detail'),
     path('manga/<slug:slug>/chapter_delete/<int:chapter_number>', MangaChapterDeleteView.as_view()),

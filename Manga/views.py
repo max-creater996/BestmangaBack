@@ -484,3 +484,28 @@ class MangaChapterDeleteView(generics.DestroyAPIView):
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class DeletePageFromChapterView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, chapter_id, page_number):
+        # Получаем главу
+        chapter = get_object_or_404(MangaChapters, id=chapter_id)
+        
+        # Проверяем, что пользователь является автором манги
+        if str(chapter.manga.writer_user_id) != str(request.user.username):
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Находим страницу в главе
+        try:
+            page = chapter.pages.get(page_number=page_number)
+        except MangaPage.DoesNotExist:
+            return Response({"error": "Page not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Удаляем страницу из главы
+        chapter.pages.remove(page)
+        
+        # Удаляем саму страницу
+        page.delete()
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
