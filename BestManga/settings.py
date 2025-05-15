@@ -194,8 +194,8 @@ DJOSER = {
         'user_create': 'djoser.serializers.UserCreateSerializer',
         'user': 'djoser.serializers.UserSerializer',
     },
-    "EMAIL_FRONTEND_PROTOCOL":"http",
-    "EMAIL_FRONTEND_DOMAIN":"localhost:3005/",
+    "EMAIL_FRONTEND_PROTOCOL":"https",
+    "EMAIL_FRONTEND_DOMAIN":"best-manga-front.vercel.app",
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
